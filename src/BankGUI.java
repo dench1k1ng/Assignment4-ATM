@@ -14,8 +14,8 @@ public class BankGUI extends JFrame {
 
 
     private JComboBox<String> bankList;
-    private JTextField bankNameField, accountNumberField, pinField, amountField, atmIdField, atmAddressField, accountBalanceField;
-    private JButton addBankBtn, deleteBankBtn, addAccountBtn, depositBtn, withdrawBtn, addATMBtn;
+    private JTextField bankNameField, accountNumberField, pinField, atmIdField, atmAddressField, accountBalanceField;
+    private JButton addBankBtn, deleteBankBtn, addAccountBtn, removeAccountBtn, depositBtn, withdrawBtn, addATMBtn;
 
     private Map<String, Integer> bankMap = new HashMap<>();  // Store bank names and their IDs
 
@@ -24,6 +24,7 @@ public class BankGUI extends JFrame {
         setSize(600, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new GridLayout(3, 1));
+
 
         this.bankDB = new BankDB();
         Connection conn = bankDB.connectToDatabase();
@@ -35,6 +36,8 @@ public class BankGUI extends JFrame {
 
         // Panel for Bank Operations
         JPanel bankPanel = new JPanel(new FlowLayout());
+        bankPanel.setBackground(Color.CYAN);
+
         bankNameField = new JTextField(10);
         addBankBtn = new JButton("Add Bank");
         deleteBankBtn = new JButton("Delete Bank");
@@ -50,26 +53,39 @@ public class BankGUI extends JFrame {
 
         // Panel for Account Operations
         JPanel accountPanel = new JPanel(new FlowLayout());
+        accountPanel.setBackground(Color.GREEN);
+
         accountNumberField = new JTextField(10);
         accountBalanceField = new JTextField(10);
         pinField = new JTextField(4);
-//        amountField = new JTextField(7);
         addAccountBtn = new JButton("Create Account");
         depositBtn = new JButton("Deposit");
         withdrawBtn = new JButton("Withdraw");
+        removeAccountBtn = new JButton("Delete Account");
 
+// Add input fields to the account panel
         accountPanel.add(new JLabel("Account No:"));
         accountPanel.add(accountNumberField);
         accountPanel.add(new JLabel("PIN:"));
         accountPanel.add(pinField);
-        accountPanel.add(addAccountBtn);
         accountPanel.add(new JLabel("Amount:"));
         accountPanel.add(accountBalanceField);
-        accountPanel.add(depositBtn);
-        accountPanel.add(withdrawBtn);
+
+// Create a separate panel for buttons with FlowLayout
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        buttonPanel.add(addAccountBtn);
+        buttonPanel.add(depositBtn);
+        buttonPanel.add(withdrawBtn);
+        buttonPanel.add(removeAccountBtn);
+
+// Add the button panel to the account panel
+        accountPanel.add(buttonPanel);
+
+
 
         // Panel for ATM Operations
         JPanel atmPanel = new JPanel(new FlowLayout());
+        atmPanel.setBackground(new Color(255, 200, 100));
         atmIdField = new JTextField(7);
         atmAddressField = new JTextField(15);
         addATMBtn = new JButton("Add ATM");
@@ -93,6 +109,8 @@ public class BankGUI extends JFrame {
         depositBtn.addActionListener(e -> depositMoney());
         withdrawBtn.addActionListener(e -> withdrawMoney());
         addATMBtn.addActionListener(e -> addATM());
+        removeAccountBtn.addActionListener(e -> deleteAccount());
+
 
         setVisible(true);
     }
@@ -149,6 +167,41 @@ public class BankGUI extends JFrame {
             JOptionPane.showMessageDialog(this, "Error adding bank: " + e.getMessage());
         }
     }
+
+    private void deleteAccount() {
+        String accountNumber = accountNumberField.getText().trim();
+        String selectedBank = (String) bankList.getSelectedItem();  // Get the selected bank
+
+        if (accountNumber.isEmpty() || selectedBank == null) {
+            JOptionPane.showMessageDialog(this, "Please enter the account number and select a bank.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        try {
+            Optional<Integer> bankId = bankDB.getBankIdByName(selectedBank);  // Get the bank ID
+            if (bankId.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Bank not found.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            String sql = "DELETE FROM accounts WHERE account_number = ? AND bank_id = ?";
+            try (Connection conn = bankDB.connectToDatabase();
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, accountNumber);
+                pstmt.setInt(2, bankId.get());
+
+                int rows = pstmt.executeUpdate();
+                if (rows > 0) {
+                    JOptionPane.showMessageDialog(this, "Account deleted successfully!");
+                } else {
+                    JOptionPane.showMessageDialog(this, "Account not found.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Database error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
 
     // Delete a bank
     private void deleteBank() {
